@@ -15,7 +15,7 @@ def load_manual(file_path):
 
 def get_response(issue, manual_content):
     """Generate a response using Ollama."""
-    client = ollama.Client(host='http://127.0.0.1:11436')
+    client = ollama.Client(host='http://127.0.0.1:11434')
     prompt = (
         f"You are a friendly AI assistant for military maintenance workers. "
         f"Based on this M4 Carbine manual excerpt: {manual_content[:1000]}... "
