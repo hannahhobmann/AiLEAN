@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AiLEAN - M4 Maintenance</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #000;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            border-bottom: 2px solid #fff;
+            padding-bottom: 10px;
+        }
+        
+        .chat-box {
+            border: 2px solid #fff;
+            height: 400px;
+            padding: 10px;
+            overflow-y: auto;
+            margin: 20px 0;
+            background: #111;
+        }
+        
+        .message {
+            margin: 10px 0;
+            padding: 5px;
+        }
+        
+        .user {
+            text-align: right;
+            background: #333;
+        }
+        
+        .bot {
+            background: #222;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 10px;
+            background: #fff;
+            color: #000;
+            border: 2px solid #fff;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: #fff;
+            color: #000;
+            border: none;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #ccc;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AiLEAN M4 Assistant</h1>
+        
+        <div class="chat-box" id="chat">
+            <div class="message bot">AiLEAN: Hello! What's your M4 issue?</div>
+        </div>
+        
+        <div class="loading" id="loading">Thinking...</div>
+        
+        <div class="input-area">
+            <input type="text" id="input" placeholder="Describe your issue...">
+            <button onclick="send()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        function addMessage(text, isUser) {
+            const chat = document.getElementById('chat');
+            const msg = document.createElement('div');
+            msg.className = 'message ' + (isUser ? 'user' : 'bot');
+            msg.textContent = (isUser ? 'You: ' : 'AiLEAN: ') + text;
+            chat.appendChild(msg);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function send() {
+            const input = document.getElementById('input');
+            const loading = document.getElementById('loading');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage(message, true);
+            input.value = '';
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('http://localhost:5000/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({issue: message})
+                });
+                
+                const data = await response.json();
+                addMessage(data.response || 'Error occurred', false);
+            } catch (error) {
+                addMessage('Cannot connect to server', false);
+            }
+            
+            loading.style.display = 'none';
+        }
+
+        document.getElementById('input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') send();
+        });
+    </script>
+</body>
+</html>
