@@ -54,12 +54,15 @@ def get_response(issue, manual_content):
     relevant_info = extract_issue_info(issue, manual_content)
     prompt = (
         f"You are AiLEAN, a friendly military maintenance expert. "
-        f"Respond to the user's issue conversationally. "
+        f"Respond to the user's issue conversationally, but in minimal sentences and very be straighforward. "
         f"Use this M4 Carbine manual info: {relevant_info[:2000]}... "
         f"User issue: '{issue}'. "
         f"Explain the fix step-by-step in a natural tone, without numbered lists. "
-        f"Keep it under 100 words, simple, and supportive. "
-        f"Start with a few word greeting, end with breif encouragement."
+        f"Keep it breif, simple, and supportive. "
+        f"Start with a few word greeting, end with breif encouragement only for the first prompt"
+        f"Don't introduce yourself a second time after the user asks their question."
+        f"only use a greeting after or encouraging ending for the first user input. Anything after that just give a direct response."
+        f"Never tell the user to reference the manual. Your job is to replace them having to check the manual"
     )
     try:
         response = client.generate(model='llama3.2:latest', prompt=prompt, options={'timeout': 30})
@@ -77,7 +80,7 @@ def main():
     print("I'm AilEAN, your M4 Maintenance Bot! How can I help with your M4? (e.g., 'My M4 won’t fire') Or, you can type 'exit' to quit.")
     while True:
         try:
-            issue = input("What's the problem? ")
+            issue = input("> ")
             if issue.lower() == 'exit':
                 print("Bye!")
                 break
