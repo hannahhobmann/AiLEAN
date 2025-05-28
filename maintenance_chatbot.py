@@ -50,7 +50,7 @@ def extract_issue_info(issue, manual_content):
 
 def get_response(issue, manual_content):
     """Generate a conversational response using Ollama."""
-    client = ollama.Client(host='http://127.0.0.1:11436')
+    client = ollama.Client(host='http://127.0.0.1:11434')
     relevant_info = extract_issue_info(issue, manual_content)
     prompt = (
         f"You are AiLEAN, a friendly military maintenance expert. "
