@@ -1,0 +1,3 @@
+.venv/
+*.pyc
+m4_manual.txt
