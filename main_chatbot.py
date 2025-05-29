@@ -8,13 +8,13 @@ def init_database():
     """Initialize SQLite database for manuals."""
     conn = sqlite3.connect("military_manuals.db")
     cursor = conn.cursor()
-    cursor.execute("\n"
-                   "        CREATE TABLE IF NOT EXISTS manuals (\n"
-                   "            equipment_id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
-                   "            equipment_name TEXT NOT NULL UNIQUE,\n"
-                   "            manual_content TEXT NOT NULL\n"
-                   "        )\n"
-                   "    ")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS manuals (
+            equipment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            equipment_name TEXT NOT NULL UNIQUE,
+            manual_content TEXT NOT NULL
+        )
+    """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_name ON manuals (equipment_name)")
     conn.commit()
     conn.close()
@@ -41,7 +41,7 @@ def add_new_manual():
     if not os.path.exists(file_path) or not file_path.lower().endswith(".pdf"):
         print("Error: Invalid PDF file path or not a PDF.")
         return False
-    equipment_name = input("Enter a name for this equipment (e.g., 'M4 Carbine'): ").strip()
+    equipment_name = input("Enter a name for this equipment: ").strip()
     if not equipment_name:
         print("Error: Equipment name cannot be empty.")
         return False
@@ -90,6 +90,7 @@ def display_manuals(database):
     print("\nAvailable Manuals:")
     for i, equipment_name in enumerate(database.keys(), 1):
         print(f"{i}. {equipment_name}")
+    print("\nEnter the number or the exact equipment name to select a manual.")
     return True
 
 
@@ -116,17 +117,28 @@ def main():
 
             if choice == "1":
                 if database:
+                    selection = input("Enter the number or equipment name: ").strip()
+                    equipment_name = None
+                    equipment_id = None
+                    # Create a list of equipment names to maintain order
+                    equipment_list = list(database.keys())
+                    # Check if input is a number
                     try:
-                        selection = int(input("Enter the number of the manual: "))
-                        if 1 <= selection <= len(database):
-                            equipment_name = list(database.keys())[selection - 1]
+                        selection_num = int(selection)
+                        if 1 <= selection_num <= len(database):
+                            equipment_name = equipment_list[selection_num - 1]
                             equipment_id = database[equipment_name]
-                            print(f"\nLaunching AiLEAN for {equipment_name}...")
-                            run_offspring_chatbot(equipment_id, equipment_name)
-                        else:
-                            print("Invalid manual number.")
                     except ValueError:
-                        print("Please enter a valid number.")
+                        # Input is not a number, try matching equipment name
+                        if selection in database:
+                            equipment_name = selection
+                            equipment_id = database[equipment_name]
+
+                    if equipment_name and equipment_id:
+                        print(f"\nLaunching AiLEAN for {equipment_name}...")
+                        run_offspring_chatbot(equipment_id, equipment_name)
+                    else:
+                        print("Invalid selection. Enter a valid number or equipment name.")
             elif choice == "2":
                 add_new_manual()
             elif choice == "3":
