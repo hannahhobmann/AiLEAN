@@ -8,13 +8,13 @@ def init_database():
     """Initialize SQLite database for manuals."""
     conn = sqlite3.connect("military_manuals.db")
     cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS manuals (
-            equipment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            equipment_name TEXT NOT NULL UNIQUE,
-            manual_content TEXT NOT NULL
-        )
-    """)
+    cursor.execute("\n"
+                   "        CREATE TABLE IF NOT EXISTS manuals (\n"
+                   "            equipment_id INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                   "            equipment_name TEXT NOT NULL UNIQUE,\n"
+                   "            manual_content TEXT NOT NULL\n"
+                   "        )\n"
+                   "    ")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_equipment_name ON manuals (equipment_name)")
     conn.commit()
     conn.close()
