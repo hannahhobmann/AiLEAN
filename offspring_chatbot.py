@@ -22,7 +22,6 @@ def load_manual(equipment_id):
 
 def extract_issue_info(issue, manual_content):
     """Extract relevant manual info based on the issue."""
-    # Generic keywords for troubleshooting sections
     generic_keywords = [
         "troubleshoot",
         "troubleshooting",
@@ -31,22 +30,20 @@ def extract_issue_info(issue, manual_content):
         "issue",
         "problem",
         "failure",
-        "error"
+        "error",
+        "jam",
+        "jamming"
     ]
-    # Search for issue-related keywords in user input
     for keyword in generic_keywords:
         if keyword in issue.lower():
-            # Look for a section containing the keyword
             start_idx = manual_content.lower().find(keyword)
             if start_idx != -1:
-                # Extract section up to the next major heading or end
                 end_idx = manual_content.lower().find("section", start_idx + 1)
                 if end_idx == -1:
                     end_idx = manual_content.lower().find("chapter", start_idx + 1)
                 if end_idx == -1:
                     end_idx = len(manual_content)
                 return manual_content[start_idx:end_idx].strip()
-    # Fallback: Look for a troubleshooting or maintenance section
     for section in ["troubleshooting", "maintenance", "repair procedures"]:
         start_idx = manual_content.lower().find(section)
         if start_idx != -1:
@@ -56,16 +53,14 @@ def extract_issue_info(issue, manual_content):
             if end_idx == -1:
                 end_idx = len(manual_content)
             return manual_content[start_idx:end_idx].strip()
-    # Default: Return first 2000 characters
     return manual_content[:2000]
 
 
-def get_response(issue, manual_content, equipment_name, is_first_prompt=True):
+def get_response(issue, manual_content, equipment_name, conversation_history, is_first_prompt=True):
     """Generate a conversational response using Ollama."""
     client = ollama.Client(host='http://localhost:11434')
     relevant_info = extract_issue_info(issue, manual_content)
 
-    # Determine greeting based on time of day
     current_hour = datetime.now().hour
     if current_hour < 12:
         greeting = "Good morning"
@@ -74,13 +69,19 @@ def get_response(issue, manual_content, equipment_name, is_first_prompt=True):
     else:
         greeting = "Good evening"
 
-    # Build prompt based on whether it's the first prompt
+    history_text = ""
+    if conversation_history:
+        history_text = "Previous conversation:\n"
+        for user_issue, bot_response in conversation_history[-3:]:
+            history_text += f"User: {user_issue}\nBot: {bot_response}\n"
+
     if is_first_prompt:
         prompt = (
             f"You are AiLEAN, a friendly military maintenance expert. "
             f"{greeting}. "
             f"Respond to the user's issue conversationally, in minimal sentences, and very straightforward. "
             f"Use this {equipment_name} manual info: {relevant_info[:2000]}... "
+            f"{history_text}"
             f"User issue: '{issue}'. "
             f"Explain the fix step-by-step in a natural tone, without numbered lists. "
             f"Keep it brief, simple, and supportive. "
@@ -94,6 +95,7 @@ def get_response(issue, manual_content, equipment_name, is_first_prompt=True):
         prompt = (
             f"Respond to the user's issue conversationally, in minimal sentences, and very straightforward. "
             f"Use this {equipment_name} manual info: {relevant_info[:2000]}... "
+            f"{history_text}"
             f"User issue: '{issue}'. "
             f"Explain the fix step-by-step in a natural tone, without numbered lists. "
             f"Keep it brief, simple, and supportive. "
@@ -117,6 +119,7 @@ def run_offspring_chatbot(equipment_id, equipment_name):
         f"\nI'm AiLEAN, your {equipment_name} Maintenance Bot! How can I help? (e.g., 'My equipment won’t work') Or, type 'exit' to return to the main menu.")
     is_first_prompt = True
     greetings = ["good morning", "good afternoon", "good evening", "hello", "hi"]
+    conversation_history = []
 
     while True:
         try:
@@ -127,8 +130,8 @@ def run_offspring_chatbot(equipment_id, equipment_name):
             if not issue:
                 print(f"Please enter an issue related to {equipment_name}.")
                 continue
-            # Check if input is a greeting
-            if any(greeting in issue for greeting in greetings):
+            # Check if input is exactly a greeting
+            if issue in greetings:
                 current_hour = datetime.now().hour
                 if current_hour < 12:
                     response = f"Good morning! How can I assist with your {equipment_name} today?"
@@ -139,9 +142,10 @@ def run_offspring_chatbot(equipment_id, equipment_name):
                 print(f"\n{response}\n")
                 continue
             # Process as an issue
-            response = get_response(issue, manual_content, equipment_name, is_first_prompt)
+            response = get_response(issue, manual_content, equipment_name, conversation_history, is_first_prompt)
             print(f"\n{response}\n")
-            is_first_prompt = False  # Disable greeting/encouragement after first prompt
+            conversation_history.append((issue, response))
+            is_first_prompt = False
         except KeyboardInterrupt:
             print("\nReturning to main menu...")
             break

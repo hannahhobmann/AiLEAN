@@ -40,11 +40,12 @@ def add_new_manual():
     file_path = input("Enter the full path to the PDF file: ").strip()
     if not os.path.exists(file_path) or not file_path.lower().endswith(".pdf"):
         print("Error: Invalid PDF file path or not a PDF.")
-        return False
+        return None
+
     equipment_name = input("Enter a name for this equipment: ").strip()
     if not equipment_name:
         print("Error: Equipment name cannot be empty.")
-        return False
+        return None
 
     # Extract text from PDF
     try:
@@ -57,10 +58,10 @@ def add_new_manual():
                     text += extracted
             if not text:
                 print("Error: No text extracted from PDF.")
-                return False
+                return None
     except Exception as e:
         print(f"Error reading PDF: {e}")
-        return False
+        return None
 
     # Save to database
     try:
@@ -71,86 +72,107 @@ def add_new_manual():
             (equipment_name, text)
         )
         conn.commit()
-        conn.close()
         if cursor.rowcount == 0:
+            conn.close()
             print(f"Error: A manual for '{equipment_name}' already exists.")
-            return False
+            return None
+
+        # Get the ID of the newly inserted manual
+        cursor.execute("SELECT equipment_id FROM manuals WHERE equipment_name = ?", (equipment_name,))
+        equipment_id = cursor.fetchone()[0]
+        conn.close()
+
         print(f"Manual for '{equipment_name}' added successfully!")
-        return True
+        return equipment_id, equipment_name
     except Exception as e:
         print(f"Error adding manual to database: {e}")
-        return False
+        return None
 
 
-def display_manuals(database):
-    """Display available manuals."""
+def display_available_manuals(database):
+    """Display available manuals in a numbered list."""
     if not database:
-        print("No manuals available. Please add a manual first.")
-        return False
+        print("No manuals currently available.")
+        return
+
     print("\nAvailable Manuals:")
     for i, equipment_name in enumerate(database.keys(), 1):
         print(f"{i}. {equipment_name}")
-    print("\nEnter the number or the exact equipment name to select a manual.")
-    return True
+
+
+def get_user_choice(database):
+    """Get user's choice for manual selection or adding new manual."""
+    print("\nOptions:")
+    print("• Type the name of an existing manual to select it")
+    print("• Type 'add' to upload a new manual")
+    print("• Type 'exit' to quit")
+
+    choice = input("\n> ").strip()
+
+    if choice.lower() == 'exit':
+        return 'exit', None, None
+    elif choice.lower() == 'add':
+        return 'add', None, None
+    else:
+        # Check if it's a manual name or number
+        equipment_list = list(database.keys())
+
+        # Try to match by number first
+        try:
+            selection_num = int(choice)
+            if 1 <= selection_num <= len(database):
+                equipment_name = equipment_list[selection_num - 1]
+                equipment_id = database[equipment_name]
+                return 'select', equipment_id, equipment_name
+        except ValueError:
+            pass
+
+        # Try to match by name (case-insensitive)
+        for equipment_name in database.keys():
+            if choice.lower() == equipment_name.lower():
+                equipment_id = database[equipment_name]
+                return 'select', equipment_id, equipment_name
+
+        # No match found
+        return 'invalid', None, None
 
 
 def main():
     """Run the main chatbot interface."""
-    init_database()  # Initialize database
+    init_database()
     print("Welcome to AiLEAN, your Universal Military Maintenance Bot!")
-    print("Select a manual to troubleshoot or add a new one.")
 
     while True:
         try:
+            # Load current database
             database = load_manual_database()
-            if not display_manuals(database):
-                print("Would you like to add a new manual? (y/n)")
-                if input("> ").lower() == 'y':
-                    add_new_manual()
-                continue
 
-            print("\nOptions:")
-            print("1. Select a manual to troubleshoot")
-            print("2. Add a new manual")
-            print("3. Exit")
-            choice = input("> ").strip()
+            # Display available manuals
+            display_available_manuals(database)
 
-            if choice == "1":
-                if database:
-                    selection = input("Enter the number or equipment name: ").strip()
-                    equipment_name = None
-                    equipment_id = None
-                    # Create a list of equipment names to maintain order
-                    equipment_list = list(database.keys())
-                    # Check if input is a number
-                    try:
-                        selection_num = int(selection)
-                        if 1 <= selection_num <= len(database):
-                            equipment_name = equipment_list[selection_num - 1]
-                            equipment_id = database[equipment_name]
-                    except ValueError:
-                        # Input is not a number, try matching equipment name
-                        if selection in database:
-                            equipment_name = selection
-                            equipment_id = database[equipment_name]
+            # Get user choice
+            action, equipment_id, equipment_name = get_user_choice(database)
 
-                    if equipment_name and equipment_id:
-                        print(f"\nLaunching AiLEAN for {equipment_name}...")
-                        run_offspring_chatbot(equipment_id, equipment_name)
-                    else:
-                        print("Invalid selection. Enter a valid number or equipment name.")
-            elif choice == "2":
-                add_new_manual()
-            elif choice == "3":
-                print("Bye!")
+            if action == 'exit':
+                print("Goodbye!")
                 break
-            else:
-                print("Invalid option. Choose 1, 2, or 3.")
+            elif action == 'select':
+                print(f"\nLaunching AiLEAN for {equipment_name}...")
+                run_offspring_chatbot(equipment_id, equipment_name)
+            elif action == 'add':
+                result = add_new_manual()
+                if result:
+                    equipment_id, equipment_name = result
+                    print(f"\nLaunching AiLEAN for {equipment_name}...")
+                    run_offspring_chatbot(equipment_id, equipment_name)
+            elif action == 'invalid':
+                print("Invalid selection. Please try again.")
+
         except KeyboardInterrupt:
-            print("\nBye!")
+            print("\nGoodbye!")
             break
         except Exception as e:
-            print(f"Oops, something went wrong: {e}. Try again!")
+            print(f"Oops, something went wrong: {e}. Please try again!")
 
 
 if __name__ == "__main__":
