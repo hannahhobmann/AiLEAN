@@ -21,38 +21,109 @@ def load_manual(equipment_id):
 
 
 def extract_issue_info(issue, manual_content):
-    """Extract relevant manual info based on the issue."""
-    generic_keywords = [
-        "troubleshoot",
-        "troubleshooting",
-        "maintenance",
-        "repair",
-        "issue",
-        "problem",
-        "failure",
-        "error",
-        "jam",
-        "jamming"
+    """Extract relevant manual info based on the user's question or issue."""
+    issue_lower = issue.lower()
+
+    # Comprehensive equipment-related terms for different types of manuals
+    equipment_terms = {
+        # Aircraft terms
+        'specifications': ['wingspan', 'length', 'height', 'weight', 'dimensions', 'specs', 'specifications'],
+        'engine': ['engine', 'propeller', 'power plant', 'turboprop', 'horsepower', 'rpm'],
+        'landing gear': ['landing', 'gear', 'touchdown', 'approach', 'wheels', 'struts'],
+        'flight operations': ['takeoff', 'departure', 'climb', 'cruise', 'descent', 'flight'],
+        'fuel system': ['fuel', 'gas', 'tank', 'consumption', 'capacity', 'gallons'],
+        'electrical': ['electrical', 'power', 'battery', 'generator', 'voltage', 'amperage'],
+        'hydraulic': ['hydraulic', 'fluid', 'pressure', 'pump'],
+        'navigation': ['navigation', 'nav', 'compass', 'gps', 'instruments'],
+        'communication': ['communication', 'radio', 'comm', 'frequency'],
+        'cargo': ['cargo', 'load', 'weight', 'payload', 'capacity'],
+        'flight controls': ['controls', 'rudder', 'elevator', 'aileron', 'flaps'],
+        'instruments': ['instruments', 'gauges', 'display', 'panel', 'cockpit'],
+        'systems': ['system', 'oxygen', 'ods', 'breathing', 'life support', 'environmental'],
+
+        # Weapon/Vehicle terms
+        'ammunition': ['ammo', 'ammunition', 'rounds', 'magazine', 'cartridge'],
+        'barrel': ['barrel', 'muzzle', 'rifling', 'bore'],
+        'trigger': ['trigger', 'firing', 'safety', 'selector'],
+        'maintenance': ['cleaning', 'lubrication', 'inspection', 'service'],
+
+        # General mechanical terms
+        'operation': ['operation', 'operating', 'function', 'how to', 'procedure'],
+        'performance': ['performance', 'capability', 'range', 'speed', 'rate']
+    }
+
+    # Find relevant content based on what the user is asking about
+    found_content = []
+
+    for category, keywords in equipment_terms.items():
+        for keyword in keywords:
+            if keyword in issue_lower:
+                # Search for this keyword in the manual
+                search_positions = []
+                start_pos = 0
+
+                # Find all occurrences of this keyword
+                while True:
+                    pos = manual_content.lower().find(keyword, start_pos)
+                    if pos == -1:
+                        break
+                    search_positions.append(pos)
+                    start_pos = pos + 1
+
+                # Extract content around each occurrence
+                for pos in search_positions:
+                    # Get surrounding context
+                    start_idx = max(0, pos - 300)
+                    end_idx = min(len(manual_content), pos + 1200)
+
+                    # Try to find natural boundaries (paragraphs, sections)
+                    section_start = manual_content.rfind('\n\n', start_idx, pos)
+                    if section_start != -1:
+                        start_idx = section_start + 2
+
+                    section_end = manual_content.find('\n\n', pos, end_idx)
+                    if section_end != -1:
+                        end_idx = section_end
+
+                    extracted = manual_content[start_idx:end_idx].strip()
+                    if len(extracted) > 50 and extracted not in found_content:
+                        found_content.append(extracted)
+
+    # If we found specific content, return the most relevant pieces
+    if found_content:
+        # Combine the most relevant sections (up to 3000 characters)
+        combined_content = '\n\n'.join(found_content)
+        return combined_content[:3000]
+
+    # If the user indicates a problem, look for troubleshooting content
+    problem_indicators = [
+        'not working', 'broken', 'failed', 'error', 'problem', 'issue',
+        'malfunction', 'stuck', 'jammed', 'won\'t start', 'won\'t turn',
+        'leaking', 'smoking', 'overheating', 'strange noise', 'vibration',
+        'fix', 'repair', 'troubleshoot'
     ]
-    for keyword in generic_keywords:
-        if keyword in issue.lower():
+
+    has_problem = any(indicator in issue_lower for indicator in problem_indicators)
+
+    if has_problem:
+        # Look for troubleshooting sections
+        troubleshooting_keywords = [
+            "troubleshoot", "troubleshooting", "maintenance", "repair",
+            "failure", "malfunction", "corrective action", "fault", "defect"
+        ]
+
+        for keyword in troubleshooting_keywords:
             start_idx = manual_content.lower().find(keyword)
             if start_idx != -1:
                 end_idx = manual_content.lower().find("section", start_idx + 1)
                 if end_idx == -1:
                     end_idx = manual_content.lower().find("chapter", start_idx + 1)
                 if end_idx == -1:
-                    end_idx = len(manual_content)
+                    end_idx = min(len(manual_content), start_idx + 2000)
+
                 return manual_content[start_idx:end_idx].strip()
-    for section in ["troubleshooting", "maintenance", "repair procedures"]:
-        start_idx = manual_content.lower().find(section)
-        if start_idx != -1:
-            end_idx = manual_content.lower().find("section", start_idx + 1)
-            if end_idx == -1:
-                end_idx = manual_content.lower().find("chapter", start_idx + 1)
-            if end_idx == -1:
-                end_idx = len(manual_content)
-            return manual_content[start_idx:end_idx].strip()
+
+    # If nothing specific found, return general information from the beginning
     return manual_content[:2000]
 
 
